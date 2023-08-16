@@ -2,14 +2,11 @@ import openai
 from os import environ
 from dotenv import load_dotenv
 import asyncio
+import constant
 
 def get_OpenAI_API_KEY():
     load_dotenv()
     return environ.get('OpenAI_API_KEY')
-
-def get_Content():
-    load_dotenv()
-    return environ.get('Content')
 
 openai.api_key = get_OpenAI_API_KEY()
 
@@ -30,7 +27,7 @@ def return_gpt_output(text):
     print(text)
 
 async def create_conversation():
-    conversation = [{"role": "system", "content": get_Content()}]
+    conversation = [{"role": "system", "content": constant.Content}]
     while True:
         user_input = get_user_input()
 

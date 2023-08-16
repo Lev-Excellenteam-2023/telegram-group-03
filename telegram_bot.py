@@ -1,30 +1,25 @@
 from os import environ
+from gpt_handler import get_reply_from_chatgpt, summarize_conversions_with_gpt
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ConversationHandler, \
-    CallbackContext
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import ConversationHandler, CallbackContext
+from consts import FULL_NAME, PHONE, SYMPTOMS, GPT_ROLE_SETTING_MESSAGE, SYSTEM_ROLE
 
 
-def get_bot_token():
+def configure_telegram_bot_api_key():
     load_dotenv()
     return environ.get("DENTAL_AID_BOT_TOKEN")
 
 
-# TODO create separate file to handle consts
-TOKEN = get_bot_token()
-FULL_NAME = 0
-PHONE = 1
-SYMPTOMS = 2
-
-
 async def start_command(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        "Hi! Thanks for chatting with me!\nI am the Dentist Aid Bot. Please type /help to see the available commands.")
+    await context.bot.send_message(update.message.chat_id,
+                                   "Hi there! I am Dentist Aid Bot, here to help you. Thanks for chatting with me! "
+                                   "If you need assistance, just type \\help.")
 
 
 async def open_new_chat_command(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        "Okay, before we continue, let's start with your full name please.")
+    await context.bot.send_message(update.message.chat_id,
+                                   "To assist you better, could you please provide your full name?")
     return FULL_NAME
 
 
@@ -33,10 +28,10 @@ async def get_name(update: Update, context: CallbackContext):
 
     context.user_data['full_name'] = user_full_name
 
-    await update.message.reply_text(
-        "great! now can you please provide a phone number you can be reached on...")
+    await context.bot.send_message(update.message.chat_id,
+                                   f"Thanks, {user_full_name.split()[0]}! 😊 \nNow, could you please provide a phone number where we can reach you?")
 
-    return 1
+    return PHONE
 
 
 async def get_phone(update: Update, context: CallbackContext):
@@ -44,69 +39,34 @@ async def get_phone(update: Update, context: CallbackContext):
 
     context.user_data['phone'] = phone
 
-    await update.message.reply_text(
-        "please describe briefly, what are your symptoms?")
+    await context.bot.send_message(update.message.chat_id,
+                                   "Awesom!. 🙌 \nCould you briefly describe the symptoms you're experiencing?")
 
-    return 2
-
-
-async def get_user_input(update, context):
-    response = None
-
-    while response is None:
-        response = await context.update_queue.get()
-
-    return response.message.text
+    return SYMPTOMS
 
 
-async def get_reply_from_chatgpt(user_input: str) -> str:
-    # chat gpt logic goes here
-    pass
+def update_gpt_history_for_user(context: CallbackContext, role: str, content: str) -> None:
+    if "gpt_convo_history" not in context.user_data:
+        context.user_data["gpt_convo_history"] = [{"role": "system", "content": SYSTEM_ROLE}]
+    context.user_data["gpt_convo_history"].append({"role": role, "content": content})
 
 
 async def get_symptoms(update: Update, context: CallbackContext):
     user_input = update.message.text
+    chat_id = update.message.chat_id
 
-    while user_input.lower() != '/cancel':
-        # TODO send user input openAI - currently for test change param to hard-coded str.
-        await update.message.reply_text(await get_reply_from_chatgpt(user_input))
+    if user_input == "/cancel":
+        return ConversationHandler.END
 
-        user_input = await get_user_input(update, context)
+    update_gpt_history_for_user(context, "user", user_input)
+    reply = await get_reply_from_chatgpt(context)
+    update_gpt_history_for_user(context, "assistant", reply)
+    await context.bot.send_message(chat_id, reply)
 
-    await update.message.reply_text(
-        f"Thank you, for providing your information, the office will be in contact with you.")
-
-    return ConversationHandler.END
+    return SYMPTOMS
 
 
 async def cancel(update: Update, context: CallbackContext):
-    await update.message.reply_text("Conversation canceled.")
+    reply = await summarize_conversions_with_gpt(context)
+    await update.message.reply_text(reply)
     return ConversationHandler.END
-
-
-def is_regular_text_message(update):
-    # Custom filter function to check if the message is a regular text message
-    return update.message.text and not update.message.text.startswith('/')
-
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('openchat', open_new_chat_command)],
-        states={
-            FULL_NAME: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_name)],
-            PHONE: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)') and filters.Regex(r'^\d+$'), get_phone)],
-            SYMPTOMS: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_symptoms)]
-        },
-        fallbacks=[CommandHandler('cancel', cancel)]
-    )
-
-    app.add_handler(CommandHandler('start', start_command))
-    app.add_handler(conv_handler)
-
-    app.run_polling()
-
-
-if __name__ == '__main__':
-    main()

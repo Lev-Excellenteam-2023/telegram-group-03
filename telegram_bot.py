@@ -1,9 +1,28 @@
 from os import environ
 from gpt_handler import get_reply_from_chatgpt, summarize_conversions_with_gpt
 from dotenv import load_dotenv
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import ConversationHandler, CallbackContext
-from consts import FULL_NAME, PHONE, SYMPTOMS, GPT_ROLE_SETTING_MESSAGE, SYSTEM_ROLE
+from telegram import Update
+from telegram.ext import ConversationHandler, CallbackContext, ApplicationBuilder, CommandHandler, MessageHandler, \
+    filters
+from consts import FULL_NAME, PHONE, SYMPTOMS, SYSTEM_ROLE
+
+
+def initialize_bot():
+    app = ApplicationBuilder().token(configure_telegram_bot_api_key()).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('openchat', open_new_chat_command)],
+        states={
+            FULL_NAME: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_name)],
+            PHONE: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)') and filters.Regex(r'^\d+$'), get_phone)],
+            SYMPTOMS: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_symptoms)]
+        },
+        fallbacks=[CommandHandler('cancel', cancel), CommandHandler('start', start_command)]
+    )
+
+    app.add_handler(CommandHandler('start', start_command))
+    app.add_handler(conv_handler)
+    return app
 
 
 def configure_telegram_bot_api_key():

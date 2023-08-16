@@ -50,10 +50,28 @@ async def get_phone(update: Update, context: CallbackContext):
     return 2
 
 
-async def get_symptoms(update: Update, context: CallbackContext):
-    symptoms = update.message.text
+async def get_user_input(update, context):
+    response = None
 
-    context.user_data['symptoms'] = symptoms
+    while response is None:
+        response = await context.update_queue.get()
+
+    return response.message.text
+
+
+async def get_reply_from_chatgpt(user_input: str) -> str:
+    # chat gpt logic goes here
+    pass
+
+
+async def get_symptoms(update: Update, context: CallbackContext):
+    user_input = update.message.text
+
+    while user_input.lower() != '/cancel':
+        # TODO send user input openAI - currently for test change param to hard-coded str.
+        await update.message.reply_text(await get_reply_from_chatgpt(user_input))
+
+        user_input = await get_user_input(update, context)
 
     await update.message.reply_text(
         f"Thank you, for providing your information, the office will be in contact with you.")

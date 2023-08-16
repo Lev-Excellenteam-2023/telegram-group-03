@@ -1,11 +1,13 @@
-from os import getenv
+from os import environ
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ConversationHandler, \
     CallbackContext
 
 
 def get_bot_token():
-    return getenv("DENTAL_AID_BOT_TOKEN")
+    load_dotenv()
+    return environ.get("DENTAL_AID_BOT_TOKEN")
 
 
 # TODO create separate file to handle consts

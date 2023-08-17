@@ -33,7 +33,8 @@ def generate_report(filename="DoctorReport.pdf"):
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
 
-    fh.initialize_db()
+    #todo #when run manualy uncomment this to connect to DB
+    #fh.initialize_db()
     records = fh.users_sorted_by_severity()
 
     max_width = max([calculate_column_width(r['conversation_txt']) for r in records])

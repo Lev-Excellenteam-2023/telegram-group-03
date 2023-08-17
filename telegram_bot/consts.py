@@ -1,4 +1,5 @@
 # states for telegram-bot Conversation handler
+import os
 
 FULL_NAME = 0
 PHONE = 1
@@ -9,8 +10,6 @@ GPT_CONVERSATION_HISTORY = "gpt_convo_history"
 PATIENT_SYMPTOMS = "symptoms"
 PATIENT_PHONE = "phone"
 PATIENT_NAME = "full_name"
-
-
 
 # roles for chat_gpt queries
 
@@ -31,9 +30,9 @@ SYSTEM_ROLE = "You are a dentist helper that asks questions to a patient " \
               "1.Where does it hurt in your mouth ?" \
               "2 How long it the pain lasting ?" \
               "3 When do you feel the pain ?(When you drink hot or cold or when you bite?)?" \
-              "4 Do you take medication?"\
-             "be formaol and polite and kind, when you feel you recieved all the information you want" \
-             "offer the user to end conversation, do not summerize anything" \
+              "4 Do you take medication?" \
+              "be formaol and polite and kind, when you feel you recieved all the information you want" \
+              "offer the user to end conversation, do not summerize anything" \
               "the end of the conversation should look like this:" \
               "Tanks for sharing this information, you can use the //endconversation commans to submit your request"
 
@@ -45,6 +44,12 @@ SEVERITY_LEVEL_DEFINER_ROLE = "you are a dentist that defines severity of patien
 GPT_ROLE_SETTING_MESSAGE = {"role": "system", "content": SYSTEM_ROLE}
 
 
-#paths
+# paths
 
-PDF_FILE_PATH=r"C:\Users\mybj2\Desktop\telegram-group-03\REPORT\reports\DoctorReport.pdf"
+def configure_pdf_path():
+    from dotenv import load_dotenv
+    load_dotenv()
+    return os.environ.get('PDF_FILE_PATH')
+
+
+PDF_FILE_PATH = configure_pdf_path()

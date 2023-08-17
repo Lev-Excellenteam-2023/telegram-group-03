@@ -28,7 +28,7 @@ def severity_to_color(severity):
     return color_scale[min(max(0, severity - 1), len(color_scale) - 1)]
 
 def generate_report(filename="DoctorReport.pdf"):
-    filename = os.path.join("reports", filename)
+    filename = os.path.join("../REPORT/reports/", filename)
     directory = os.path.dirname(filename)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)

@@ -1,9 +1,8 @@
 from os import environ
 import openai
 from dotenv import load_dotenv
-from telegram.ext import CallbackContext
-
 from consts import SUMMARIZER_ROLE
+from typing import List, Dict
 
 
 def configure_gpt_api_key():
@@ -11,18 +10,22 @@ def configure_gpt_api_key():
     openai.api_key = environ.get("OPEN_AI")
 
 
-async def get_reply_from_chatgpt(context: CallbackContext) -> str:
+async def get_reply_from_chatgpt(messages_history: List[Dict[str, str]]) -> str:
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=context.user_data["gpt_convo_history"],
+        messages=messages_history,
     )
     return response['choices'][0]['message']['content']
 
 
-async def summarize_conversions_with_gpt(context: CallbackContext) -> str:
-    messages = [{"role": "system", "content": SUMMARIZER_ROLE}, context.user_data["gpt_convo_history"][1:]]
+async def summarize_conversions_with_gpt(messages_history: List[Dict[str, str]]) -> str:
+    messages = [{"role": "system", "content": SUMMARIZER_ROLE}, messages_history[1:]]
     response = openai.Completion.create(
         model="gpt-3.5-turbo",
-        messages=context.user_data["gpt_convo_history"],
+        messages=messages_history,
     )
     return response['choices'][0]['message']['content']
+
+async def get_severity_level_from_gpt(messages_history: List[Dict[str, str]]) -> str:
+    #todo implement the prompt
+    return 10

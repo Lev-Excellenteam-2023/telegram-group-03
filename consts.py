@@ -5,7 +5,11 @@ FULL_NAME = 0
 PHONE = 1
 SYMPTOMS = 2
 
-
+#consts for context.user_data dictionary keys
+GPT_CONVERSATION_HISTORY="gpt_convo_history"
+PATIENT_SYMPTOMS="symptoms"
+PATIENT_PHONE="phone"
+PATIENT_NAME="full_name"
 # roles for chat_gpt queries
 
 SUMMARIZER_ROLE = "You are a chat summarizer that summarizes conversations " \
@@ -29,3 +33,5 @@ SYSTEM_ROLE = "You are a dentist who gives super short answers to your patients 
           "4 Do you take medication?"
 
 GPT_ROLE_SETTING_MESSAGE = {"role": "system", "content": SYSTEM_ROLE}
+
+CONVERSATION_HANDLER=""

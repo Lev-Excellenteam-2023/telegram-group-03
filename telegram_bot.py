@@ -4,22 +4,32 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ConversationHandler, CallbackContext, ApplicationBuilder, CommandHandler, MessageHandler, \
     filters
-from consts import FULL_NAME, PHONE, SYMPTOMS, SYSTEM_ROLE
+from consts import FULL_NAME, PHONE, SYMPTOMS, SYSTEM_ROLE, GPT_CONVERSATION_HISTORY, \
+    PATIENT_PHONE,PATIENT_SYMPTOMS,PATIENT_NAME
 
 
 def initialize_bot():
     app = ApplicationBuilder().token(configure_telegram_bot_api_key()).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('openchat', open_new_chat_command)],
+        entry_points=[CommandHandler('NewConversation', open_new_chat_command)],
         states={
-            FULL_NAME: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_name)],
-            PHONE: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)') and filters.Regex(r'^\d+$'), get_phone)],
-            SYMPTOMS: [MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_symptoms)]
+            FULL_NAME: [CommandHandler('cancel', cancel),
+                        CommandHandler('restart', start_command),
+                        CommandHandler('endconversation', end_conversation_command),
+                        MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_name)],
+            PHONE: [CommandHandler('cancel', cancel),
+                    CommandHandler('restart', start_command),
+                    CommandHandler('endconversation', end_conversation_command),
+                    MessageHandler(filters.Text and filters.Regex(r'^(?!/)') and filters.Regex(r'^\d+$'), get_phone)],
+            SYMPTOMS: [CommandHandler('cancel', cancel),
+                       CommandHandler('restart', start_command),
+                       CommandHandler('endconversation', end_conversation_command),
+                       MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_symptoms)]
         },
-        fallbacks=[CommandHandler('cancel', cancel), CommandHandler('start', start_command)]
+        fallbacks=[CommandHandler('cancel', cancel), CommandHandler('restart', start_command)]
     )
-
+    CONVERSATION_HANDLER = conv_handler
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(conv_handler)
     return app
@@ -42,10 +52,30 @@ async def open_new_chat_command(update: Update, context: CallbackContext):
     return FULL_NAME
 
 
+async def restart_command(update: Update, context: CallbackContext):
+    await context.bot.send_message(update.message.chat_id,
+                                   "Ok!, let's start over again...")
+    await start_command(update, context)
+
+
+async def cancel_command(update: Update, context: CallbackContext):
+    await context.bot.send_message(update.message.chat_id,
+                                   "Oh no!😢 , I'm sorry I couldn't help you today\n if you change your mind, use /newconversation to restart the conversation")
+
+
+async def end_conversation_command(update: Update, context: CallbackContext):
+    await context.bot.send_message(update.message.chat_id,
+                                   "Wonderful!👍🏻 Thank you for providing the information.\n We have received your data and it's being stored super securely 🔒\n. Our office will be in contact shortly to coordinate an appointment\n. Have a great day!")
+    #name: str, phone: str, symptom: str, conversation_txt: str, severity: int
+    chat_summary = await summarize_conversions_with_gpt(context.user_data[GPT_CONVERSATION_HISTORY])
+    symptoms = context.user_data[PATIENT_SYMPTOMS]
+    severity = await get_severity_level_from_gpt(context.user_data[GPT_CONVERSATION_HISTORY])
+    #todo waiting for integration with data base to import this file
+    #add_record(context.user_data[PATIENT_NAME],context.user_data[PATIENT_PHONE],context.user_data[PATIENT_SYMPTOMS],chat_summary,severity)
 async def get_name(update: Update, context: CallbackContext):
     user_full_name = update.message.text
 
-    context.user_data['full_name'] = user_full_name
+    context.user_data[PATIENT_NAME] = user_full_name
 
     await context.bot.send_message(update.message.chat_id,
                                    f"Thanks, {user_full_name.split()[0]}! 😊 \nNow, could you please provide a phone number where we can reach you?")
@@ -56,7 +86,7 @@ async def get_name(update: Update, context: CallbackContext):
 async def get_phone(update: Update, context: CallbackContext):
     phone = update.message.text
 
-    context.user_data['phone'] = phone
+    context.user_data[PATIENT_PHONE] = phone
 
     await context.bot.send_message(update.message.chat_id,
                                    "Awesom!. 🙌 \nCould you briefly describe the symptoms you're experiencing?")
@@ -66,8 +96,9 @@ async def get_phone(update: Update, context: CallbackContext):
 
 def update_gpt_history_for_user(context: CallbackContext, role: str, content: str) -> None:
     if "gpt_convo_history" not in context.user_data:
-        context.user_data["gpt_convo_history"] = [{"role": "system", "content": SYSTEM_ROLE}]
-    context.user_data["gpt_convo_history"].append({"role": role, "content": content})
+        context.user_data[GPT_CONVERSATION_HISTORY] = [{"role": "system", "content": SYSTEM_ROLE}]
+        context.user_data[PATIENT_SYMPTOMS] = content
+    context.user_data[GPT_CONVERSATION_HISTORY].append({"role": role, "content": content})
 
 
 async def get_symptoms(update: Update, context: CallbackContext):
@@ -78,7 +109,7 @@ async def get_symptoms(update: Update, context: CallbackContext):
         return ConversationHandler.END
 
     update_gpt_history_for_user(context, "user", user_input)
-    reply = await get_reply_from_chatgpt(context)
+    reply = await get_reply_from_chatgpt(context.user_data["gpt_convo_history"])
     update_gpt_history_for_user(context, "assistant", reply)
     await context.bot.send_message(chat_id, reply)
 

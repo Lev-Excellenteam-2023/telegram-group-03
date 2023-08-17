@@ -83,7 +83,9 @@ async def export_report_command(update: Update, context: CallbackContext):
     await context.bot.send_message(update.message.chat_id,
                                    "I am exporting the report, it should appear shortly in the reports folder")
     generate_report('DoctorReport.pdf')
-
+    with open(PDF_FILE_PATH, 'rb') as pdf_file:
+        pdf_input = InputFile(pdf_file)
+        await context.bot.send_document(update.message.chat_id, document=pdf_input)
 
 
 async def get_name(update: Update, context: CallbackContext):

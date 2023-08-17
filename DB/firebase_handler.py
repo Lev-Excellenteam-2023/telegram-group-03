@@ -1,12 +1,17 @@
 import datetime
+import os
 from typing import List, Dict
 import firebase_admin
+from dotenv import load_dotenv
 from firebase_admin import credentials, db
 
 
 def initialize_db():
-    # Setting up the Firebase connection
-    cred = credentials.Certificate('../private/telegrambot-7fe4d-firebase-adminsdk-vi108-333c66edaa.json')
+    load_dotenv()
+    cert_path = os.getenv('FIREBASE_CERTIFICATE_PATH')
+    if not cert_path:
+        raise ValueError("Missing FIREBASE_CERTIFICATE_PATH in .env file")
+    cred = credentials.Certificate(cert_path)
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://telegrambot-7fe4d-default-rtdb.firebaseio.com/'
     })

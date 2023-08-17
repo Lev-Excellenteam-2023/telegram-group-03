@@ -2,7 +2,7 @@ import random
 from DB import firebase_handler as fh
 
 
-def generate_mock_users(num=10):
+def generate_mock_users(num=1):
     first_names = ["John", "Jane", "Mike", "Sarah", "Tom", "Linda", "Robert", "Emily", "Steve", "Lucy"]
     last_names = ["Doe", "Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Garcia", "Rodriguez"]
 

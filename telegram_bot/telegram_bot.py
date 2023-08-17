@@ -1,11 +1,11 @@
 from os import environ
-from gpt_handler import get_reply_from_chatgpt, summarize_conversions_with_gpt
+from gpt_handler import get_reply_from_chatgpt, summarize_conversions_with_gpt, get_severity_level_from_gpt
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ConversationHandler, CallbackContext, ApplicationBuilder, CommandHandler, MessageHandler, \
     filters
 from consts import FULL_NAME, PHONE, SYMPTOMS, SYSTEM_ROLE, GPT_CONVERSATION_HISTORY, \
-    PATIENT_PHONE,PATIENT_SYMPTOMS,PATIENT_NAME
+    PATIENT_PHONE, PATIENT_SYMPTOMS, PATIENT_NAME
 
 
 def initialize_bot():
@@ -14,22 +14,17 @@ def initialize_bot():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('NewConversation', open_new_chat_command)],
         states={
-            FULL_NAME: [CommandHandler('cancel', cancel),
-                        CommandHandler('restart', start_command),
-                        CommandHandler('endconversation', end_conversation_command),
+            FULL_NAME: [MessageHandler(filters.Text and filters.Regex(r'^/cancel'), cancel),
                         MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_name)],
-            PHONE: [CommandHandler('cancel', cancel),
-                    CommandHandler('restart', start_command),
-                    CommandHandler('endconversation', end_conversation_command),
+            PHONE: [
+                    MessageHandler(filters.Text and filters.Regex(r'^/cancel'), cancel),
                     MessageHandler(filters.Text and filters.Regex(r'^(?!/)') and filters.Regex(r'^\d+$'), get_phone)],
-            SYMPTOMS: [CommandHandler('cancel', cancel),
-                       CommandHandler('restart', start_command),
-                       CommandHandler('endconversation', end_conversation_command),
+            SYMPTOMS: [MessageHandler(filters.Text and filters.Regex(r'^/cancel'), cancel),
+                       MessageHandler(filters.Text and filters.Regex(r'^/endconversation'), end_conversation_command),
                        MessageHandler(filters.Text and filters.Regex(r'^(?!/)'), get_symptoms)]
         },
         fallbacks=[CommandHandler('cancel', cancel), CommandHandler('restart', start_command)]
     )
-    CONVERSATION_HANDLER = conv_handler
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(conv_handler)
     return app
@@ -56,22 +51,31 @@ async def restart_command(update: Update, context: CallbackContext):
     await context.bot.send_message(update.message.chat_id,
                                    "Ok!, let's start over again...")
     await start_command(update, context)
+    return ConversationHandler.END
 
 
 async def cancel_command(update: Update, context: CallbackContext):
+    print("entered cancel")
     await context.bot.send_message(update.message.chat_id,
                                    "Oh no!😢 , I'm sorry I couldn't help you today\n if you change your mind, use /newconversation to restart the conversation")
+    return ConversationHandler.END
 
 
 async def end_conversation_command(update: Update, context: CallbackContext):
     await context.bot.send_message(update.message.chat_id,
-                                   "Wonderful!👍🏻 Thank you for providing the information.\n We have received your data and it's being stored super securely 🔒\n. Our office will be in contact shortly to coordinate an appointment\n. Have a great day!")
-    #name: str, phone: str, symptom: str, conversation_txt: str, severity: int
+                                   "Wonderful!👍🏻 Thank you for providing the information.\nWe have received your data and it's being stored super securely 🔒\nOur office will be in contact shortly to coordinate an appointment.\nHave a great day!")
+    # name: str, phone: str, symptom: str, conversation_txt: str, severity: int
     chat_summary = await summarize_conversions_with_gpt(context.user_data[GPT_CONVERSATION_HISTORY])
+    print(chat_summary)
     symptoms = context.user_data[PATIENT_SYMPTOMS]
-    severity = await get_severity_level_from_gpt(context.user_data[GPT_CONVERSATION_HISTORY])
-    #todo waiting for integration with data base to import this file
-    #add_record(context.user_data[PATIENT_NAME],context.user_data[PATIENT_PHONE],context.user_data[PATIENT_SYMPTOMS],chat_summary,severity)
+    severity = await get_severity_level_from_gpt(chat_summary)
+    print(severity)
+
+    # todo waiting for integration with data base to import this function
+    # add_record(context.user_data[PATIENT_NAME],context.user_data[PATIENT_PHONE],context.user_data[PATIENT_SYMPTOMS],chat_summary,int(severity))
+    return ConversationHandler.END
+
+
 async def get_name(update: Update, context: CallbackContext):
     user_full_name = update.message.text
 
